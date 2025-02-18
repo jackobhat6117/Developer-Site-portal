@@ -1,0 +1,8 @@
+import { AxiosResponse } from "axios";
+
+export interface ApiResponse<T> {
+    message?: string;
+    status?: number;
+    data: T;
+  }
+  
