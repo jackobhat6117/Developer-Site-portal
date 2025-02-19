@@ -3,8 +3,7 @@
 import { useState, useEffect, useRef } from "react"
 import { Button } from "@heroui/react"
 import { X } from "lucide-react"
-import { MapContainer, TileLayer, Marker, Popup, Polyline } from "react-leaflet"
-import "leaflet/dist/leaflet.css"
+import { GoogleMap, LoadScript, Marker, DirectionsRenderer } from "@react-google-maps/api"
 
 interface IncidentDrawerProps {
   isOpen: boolean
@@ -12,17 +11,36 @@ interface IncidentDrawerProps {
   incident: any
 }
 
+const mapContainerStyle = {
+  height: "400px",
+  width: "100%",
+}
+
+const defaultCenter = {
+  lat: 9.145,
+  lng: 40.4897,
+}
 
 export default function IncidentDrawer({ isOpen, onClose, incident }: IncidentDrawerProps) {
   const [drawerWidth, setDrawerWidth] = useState(400)
-  const [currentLocation, setCurrentLocation] = useState<[number, number] | null>(null)
+  const [currentLocation, setCurrentLocation] = useState<{ lat: number; lng: number } | null>(null)
+  const [directions, setDirections] = useState<google.maps.DirectionsResult | null>(null)
   const resizeHandleRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if ("geolocation" in navigator) {
-      navigator.geolocation.getCurrentPosition((position) => {
-        setCurrentLocation([position.coords.latitude, position.coords.longitude])
-      })
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setCurrentLocation({
+            lat: position.coords.latitude || 10.875835 ,
+            lng: position.coords.longitude || 39.644656,
+          })
+        },
+        (error) => {
+          console?.error("Error getting location:", error)
+          setCurrentLocation(defaultCenter) // Fallback to default
+        }
+      )
     }
 
     const handleMouseMove = (e: MouseEvent) => {
@@ -47,12 +65,33 @@ export default function IncidentDrawer({ isOpen, onClose, incident }: IncidentDr
     }
   }, [])
 
-  if (!isOpen) return null
+  useEffect(() => {
+    if (currentLocation && incident) {
+      const directionsService = new google.maps.DirectionsService()
 
-  const incidentLocation: [number, number] = [
-    Number.parseFloat(incident.latitude),
-    Number.parseFloat(incident.longitude),
-  ]
+      const incidentLocation = {
+        lat: Number.parseFloat(incident.locationLat),
+        lng: Number.parseFloat(incident.locationLong),
+      }
+
+      directionsService.route(
+        {
+          origin: currentLocation,
+          destination: incidentLocation,
+          travelMode: google.maps.TravelMode.DRIVING, // You can change this to WALKING, BICYCLING, or TRANSIT
+        },
+        (result, status) => {
+          if (status === google.maps.DirectionsStatus.OK) {
+            setDirections(result)
+          } else {
+            console.error("Error fetching directions:", status)
+          }
+        }
+      )
+    }
+  }, [currentLocation, incident])
+
+  if (!isOpen) return null
 
   return (
     <div
@@ -90,21 +129,29 @@ export default function IncidentDrawer({ isOpen, onClose, incident }: IncidentDr
           </p>
         </div>
         <div className="h-[400px] mb-4">
-          {currentLocation && (
-            <MapContainer center={currentLocation} zoom={13} style={{ height: "100%", width: "100%" }}>
-              <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-              <Marker position={currentLocation}>
-                <Popup>Current Location</Popup>
-              </Marker>
-              <Marker position={incidentLocation}>
-                <Popup>Incident Location</Popup>
-              </Marker>
-              <Polyline positions={[currentLocation, incidentLocation]} color="red" />
-            </MapContainer>
-          )}
+          <LoadScript googleMapsApiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ""}>
+            <GoogleMap
+              mapContainerStyle={mapContainerStyle}
+              center={currentLocation || defaultCenter}
+              zoom={13}
+            >
+              {currentLocation && (
+                <Marker position={currentLocation} label="Current Location" />
+              )}
+              {incident && (
+                <Marker
+                  position={{
+                    lat: Number.parseFloat(incident.locationLat),
+                    lng: Number.parseFloat(incident.locationLong),
+                  }}
+                  label="Incident Location"
+                />
+              )}
+              {directions && <DirectionsRenderer directions={directions} />}
+            </GoogleMap>
+          </LoadScript>
         </div>
       </div>
     </div>
   )
 }
-

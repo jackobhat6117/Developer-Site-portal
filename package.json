@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@heroui/react": "^2.6.14",
+    "@react-google-maps/api": "^2.20.6",
     "axios": "^1.7.9",
     "framer-motion": "^12.4.3",
     "leaflet": "^1.9.4",

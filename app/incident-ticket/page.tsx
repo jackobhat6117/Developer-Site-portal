@@ -31,7 +31,7 @@ export default function IncidentTicketPage() {
 
   useEffect(() => {
     getIncidentPerSite()
-  }, [getIncidentPerSite]) 
+  }, []) 
 
   const renderCell = (incident: any, columnKey: any) => {
     const cellValue = incident[columnKey]
@@ -117,4 +117,3 @@ export default function IncidentTicketPage() {
     </Layout>
   )
 }
-
